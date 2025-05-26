@@ -107,5 +107,5 @@ class LinearProjectionGradientProcessing(GradientProcessing):
             return lin_proj_l1(grad.data.flatten(start_dim=1)).view(original_shape)
         if self.p == LpPerturbationModels.get_p(LpPerturbationModels.LINF):
             return torch.sign(grad)
-        msg = "Only L2 and LInf norms implemented now"
+        msg = "Only L2, L1 and LInf norms implemented now"
         raise NotImplementedError(msg)
