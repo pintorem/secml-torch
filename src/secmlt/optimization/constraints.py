@@ -447,15 +447,38 @@ class QuantizationConstraint(InputSpaceConstraint):
         self.levels, _ = torch.sort(self.levels)
         super().__init__(preprocessing)
 
+    def _are_levels_uniform(self) -> bool:
+        min_val, max_val = self.levels[0], self.levels[-1]
+        num_levels = len(self.levels)
+        expected_levels = torch.linspace(min_val, max_val, num_levels)
+        return torch.allclose(self.levels, expected_levels, atol=1e-5)
+
     def _apply_constraint(self, x: torch.Tensor) -> torch.Tensor:
-        # reshape x to facilitate broadcasting with custom levels
-        x_expanded = x.unsqueeze(-1)
-        # calculate the absolute difference between x and each custom level
-        distances = torch.abs(x_expanded - self.levels)
-        # find the index of the closest custom level
-        nearest_indices = torch.argmin(distances, dim=-1)
-        # quantize x to the nearest custom level
-        return self.levels[nearest_indices]
+        # fast path: check if levels are uniformly distributed
+        if self._are_levels_uniform():
+            min_val, max_val = self.levels[0], self.levels[-1]
+            num_levels = len(self.levels)
+            
+            # get quantization parameters
+            quant_min = 0
+            quant_max = num_levels - 1
+            scale = (max_val - min_val) / (quant_max - quant_min)
+            zero_point = -min_val / scale
+            x_out = scale * (
+                torch.clamp(
+                    torch.round(x / scale + zero_point), quant_min, quant_max) - zero_point
+            )
+
+            return x_out
+        else:
+            # reshape x to facilitate broadcasting with custom levels
+            x_expanded = x.unsqueeze(-1)
+            # calculate the absolute difference between x and each custom level
+            distances = torch.abs(x_expanded - self.levels)
+            # find the index of the closest custom level
+            nearest_indices = torch.argmin(distances, dim=-1)
+            # quantize x to the nearest custom level
+            return self.levels[nearest_indices]
 
 
 class MaskConstraint(Constraint):
