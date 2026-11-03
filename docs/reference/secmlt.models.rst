@@ -38,6 +38,14 @@ secmlt.models.base\_trainer module
    :undoc-members:
    :show-inheritance:
 
+secmlt.models.base\_vlm module
+-------------------------------
+
+.. automodule:: secmlt.models.base_vlm
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 
