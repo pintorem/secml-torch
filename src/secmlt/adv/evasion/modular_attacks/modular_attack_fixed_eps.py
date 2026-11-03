@@ -83,7 +83,6 @@ class ModularEvasionAttackFixedEps(ModularEvasionAttack):
         target: torch.Tensor,
         optimizer: Optimizer,
         scheduler: LRScheduler,
-        multiplier: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         x_adv, delta = self.manipulation_function(samples, delta)
         # We keep the perturbation that maximizes the transformed objective
@@ -105,7 +104,6 @@ class ModularEvasionAttackFixedEps(ModularEvasionAttack):
                 samples=samples,
                 delta=delta,
                 target=target,
-                multiplier=multiplier,
             )
             # keep perturbation with best transformed objective value
             best_delta.data = torch.where(

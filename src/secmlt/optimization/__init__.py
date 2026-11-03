@@ -19,6 +19,7 @@ from .gradient_processing import (
 )
 from .initializer import Initializer, RandomLpInitializer
 from .losses import LogitDifferenceLoss
+from .objectives import ClassificationObjective, Objective
 from .optimizer_factory import ADAM, OptimizerFactory
 from .random_perturb import (
     RandomPerturb,
@@ -39,6 +40,7 @@ __all__ = [
     "ADAM",
     "COSINE_ANNEALING",
     "NO_SCHEDULER",
+    "ClassificationObjective",
     "ClipConstraint",
     "Constraint",
     "GradientProcessing",
@@ -54,6 +56,7 @@ __all__ = [
     "LpConstraint",
     "MaskConstraint",
     "NoScheduler",
+    "Objective",
     "OptimizerFactory",
     "QuantizationConstraint",
     "RandomLpInitializer",

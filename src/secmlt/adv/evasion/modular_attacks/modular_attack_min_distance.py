@@ -95,7 +95,6 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
         target: torch.Tensor,
         optimizer: Optimizer,
         scheduler: LRScheduler,
-        multiplier: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         x_adv, delta = self.manipulation_function(samples, delta)
         best_distances = torch.zeros(samples.shape[0]).fill_(torch.inf)
@@ -117,13 +116,8 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
                 samples=samples,
                 delta=delta,
                 target=target,
-                multiplier=multiplier,
             )
-            is_adv = (
-                scores.argmax(dim=1) == target
-                if multiplier == -1
-                else scores.argmax(dim=1) != target
-            )
+            is_adv = self.objective.is_success(scores, target)
             distances = torch.norm(
                 delta.detach().cpu().flatten(start_dim=1),
                 p=self.perturbation_model,

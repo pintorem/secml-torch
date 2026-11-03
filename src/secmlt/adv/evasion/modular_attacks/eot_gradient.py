@@ -28,7 +28,6 @@ class EoTGradientMixin:
         samples: torch.Tensor,
         delta: torch.Tensor,
         target: torch.Tensor,
-        multiplier: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute averaged finite-difference style gradient into delta.grad.
@@ -42,9 +41,7 @@ class EoTGradientMixin:
         delta : torch.Tensor
             Current perturbation.
         target : torch.Tensor
-            Target labels.
-        multiplier : int
-            Multiplier for loss (1 for untargeted, -1 for targeted).
+            Labels of the samples, as given by the data loader.
 
         Returns
         -------
@@ -157,9 +154,9 @@ class EoTGradientMixin:
             else torch.zeros((b, 0, 0), device=device)
         )
 
-        # multiply by multiplier and compute per-sample average loss
+        # compute per-sample average objective
         avg_losses = (
-            (losses_all * multiplier).mean(dim=1)
+            losses_all.mean(dim=1)
             if losses_all.numel() > 0
             else torch.zeros((b,), device=device)
         )
@@ -170,6 +167,6 @@ class EoTGradientMixin:
         )
 
         # place gradient into delta.grad
-        delta.grad = ((grad_est_sum / k) * multiplier).detach()
+        delta.grad = (grad_est_sum / k).detach()
 
         return avg_scores.detach(), avg_losses.detach()

@@ -36,6 +36,14 @@ secmlt.optimization.losses module
    :undoc-members:
    :show-inheritance:
 
+secmlt.optimization.objectives module
+-------------------------------------
+
+.. automodule:: secmlt.optimization.objectives
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 secmlt.optimization.optimizer\_factory module
 ---------------------------------------------
 

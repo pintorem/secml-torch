@@ -4,11 +4,11 @@ from __future__ import annotations  # noqa: I001
 
 from abc import abstractmethod
 from typing import Literal, Union, TYPE_CHECKING
-import torch.nn
 from secmlt.adv.evasion import BaseEvasionAttack
 from secmlt.manipulations import Manipulation
 from torch.nn import CrossEntropyLoss
 from secmlt.optimization import (
+    ClassificationObjective,
     LogitDifferenceLoss,
     OptimizerFactory,
     LRSchedulerFactory,
@@ -19,9 +19,10 @@ from secmlt.trackers import Tracker
 if TYPE_CHECKING:
     from functools import partial
 
+    import torch.nn
     from secmlt.manipulations.manipulation import Manipulation
     from secmlt.models import BaseModel
-    from secmlt.optimization import Constraint
+    from secmlt.optimization import Constraint, Objective
     from secmlt.optimization.gradient_processing import GradientProcessing
     from secmlt.optimization.initializer import Initializer
     from torch.optim import Optimizer, _LRScheduler
@@ -52,6 +53,7 @@ class ModularEvasionAttack(BaseEvasionAttack):
         trackers: list[Tracker] | Tracker | None = None,
         optimizer_kwargs: dict | None = None,
         scheduler_kwargs: dict | None = None,
+        objective: Objective | None = None,
     ) -> None:
         """
         Create modular evasion attack.
@@ -78,6 +80,9 @@ class ModularEvasionAttack(BaseEvasionAttack):
             Gradient transformation function.
         trackers : list[Tracker] | Tracker | None, optional
             Trackers for logging, by default None.
+        objective : Objective | None, optional
+            Objective to maximize. If None, a ClassificationObjective is built
+            from loss_function and y_target. By default None.
 
         Raises
         ------
@@ -85,7 +90,6 @@ class ModularEvasionAttack(BaseEvasionAttack):
             Raises ValueError if the loss is not in allowed
             list of loss functions.
         """
-        self.y_target = y_target
         self.num_steps = num_steps
         self.step_size = step_size
         if isinstance(trackers, Tracker):
@@ -94,14 +98,17 @@ class ModularEvasionAttack(BaseEvasionAttack):
             self.trackers = trackers
         if isinstance(loss_function, str):
             if loss_function in LOSS_FUNCTIONS:
-                self.loss_function = LOSS_FUNCTIONS[loss_function]
+                loss_function = LOSS_FUNCTIONS[loss_function](reduction="none")
             else:
                 msg = (
                     f"Loss function not found. Use one among {LOSS_FUNCTIONS.values()}"
                 )
                 raise ValueError(msg)
-        else:
-            self._loss_function = loss_function
+        self.objective = (
+            objective
+            if objective is not None
+            else ClassificationObjective(loss_function, y_target=y_target)
+        )
 
         if isinstance(optimizer_cls, str):
             optimizer_cls = OptimizerFactory.create_from_name(
@@ -153,16 +160,16 @@ class ModularEvasionAttack(BaseEvasionAttack):
 
     @property
     def loss_function(self) -> torch.nn.Module:
-        """Get the loss function of the attack."""
-        return self._loss_function
+        """Get the loss function of the attack objective."""
+        return self.objective.loss_function
 
     @loss_function.setter
     def loss_function(self, loss_function: torch.nn.Module) -> None:
-        """Set the loss function of the attack."""
+        """Set the loss function of the attack objective."""
         if isinstance(loss_function, type):
-            self._loss_function = loss_function(reduction="none")
+            self.objective.loss_function = loss_function(reduction="none")
         else:
-            self._loss_function = loss_function
+            self.objective.loss_function = loss_function
 
     @classmethod
     def _trackers_allowed(cls) -> Literal[True]:
@@ -182,7 +189,7 @@ class ModularEvasionAttack(BaseEvasionAttack):
         self, model: BaseModel, x: torch.Tensor, target: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Compute the forward for the loss function.
+        Compute the forward for the attack objective.
 
         Parameters
         ----------
@@ -191,17 +198,14 @@ class ModularEvasionAttack(BaseEvasionAttack):
         x : torch.Tensor
             Input sample.
         target : torch.Tensor
-            Target for computing the loss.
+            Labels of the samples, as given by the data loader.
 
         Returns
         -------
         tuple[torch.Tensor, torch.Tensor]
-            Output scores and loss.
+            Output scores and per-sample objective to maximize.
         """
-        scores = model.decision_function(x)
-        target = target.to(scores.device)
-        losses = self.loss_function(scores, target)
-        return scores, losses
+        return self.objective(model, x, target)
 
     def _loss_and_grad(
         self,
@@ -209,7 +213,6 @@ class ModularEvasionAttack(BaseEvasionAttack):
         samples: torch.Tensor,
         delta: torch.Tensor,
         target: torch.Tensor,
-        multiplier: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute scores and losses, then backward to get delta.grad.
@@ -234,14 +237,11 @@ class ModularEvasionAttack(BaseEvasionAttack):
             samples, delta
         )  # must be a function of delta
 
-        # Forward: get scores and per-sample losses
+        # Forward: get scores and per-sample objective (to maximize)
         scores, losses = self.forward_loss(model=model, x=x_adv, target=target)
-        losses = losses * multiplier
 
         # Backward on summed loss -> populates delta.grad
-        # With the inverted multiplier convention (untargeted: +loss,
-        # targeted: -loss), we maximize the transformed objective by
-        # minimizing its negation.
+        # We maximize the objective by minimizing its negation.
         loss_sum = (-losses).sum()
         loss_sum.backward()
 
@@ -255,17 +255,10 @@ class ModularEvasionAttack(BaseEvasionAttack):
         labels: torch.Tensor,
         init_deltas: torch.Tensor = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        multiplier = 1 if self.y_target is None else -1
-        target = (
-            torch.zeros_like(labels) + self.y_target
-            if self.y_target is not None
-            else labels
-        ).type(labels.dtype)
-
         if init_deltas is not None:
             delta = init_deltas.data
         elif isinstance(self.initializer, BaseEvasionAttack):
-            _, delta = self.initializer._run(model, samples, target)
+            _, delta = self.initializer._run(model, samples, labels)
         else:
             delta = self.initializer(samples.data)
         delta.requires_grad = True
@@ -276,10 +269,9 @@ class ModularEvasionAttack(BaseEvasionAttack):
             model,
             delta,
             samples,
-            target,
+            labels,
             optimizer,
             scheduler,
-            multiplier,
         )
 
     @abstractmethod
@@ -291,7 +283,6 @@ class ModularEvasionAttack(BaseEvasionAttack):
         target: torch.Tensor,
         optimizer: Optimizer,
         scheduler: _LRScheduler,
-        multiplier: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Abstract run loop for the attack."""
         raise NotImplementedError
