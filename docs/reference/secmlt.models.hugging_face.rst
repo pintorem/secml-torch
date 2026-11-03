@@ -12,6 +12,14 @@ secmlt.models.hugging\_face.base\_hf\_lm module
    :undoc-members:
    :show-inheritance:
 
+secmlt.models.hugging\_face.base\_hf\_vlm module
+------------------------------------------------
+
+.. automodule:: secmlt.models.hugging_face.base_hf_vlm
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 
