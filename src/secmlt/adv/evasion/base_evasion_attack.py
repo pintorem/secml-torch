@@ -289,11 +289,12 @@ class BaseEvasionAttack:
         return False
 
     @staticmethod
-    def _ensure_wrapped(model: BaseModel | torch.nn.Module) -> BasePyTorchClassifier:
+    def _ensure_wrapped(model: BaseModel | torch.nn.Module) -> BaseModel:
         """Wrap a raw nn.Module into BasePyTorchClassifier if needed."""
+        from secmlt.models import BaseModel
         from secmlt.models.pytorch import BasePyTorchClassifier
 
-        if isinstance(model, BasePyTorchClassifier):
+        if isinstance(model, BaseModel):
             return model
         if isinstance(model, torch.nn.Module):
             return BasePyTorchClassifier(model=model)
