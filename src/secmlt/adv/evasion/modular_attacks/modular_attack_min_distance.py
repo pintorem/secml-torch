@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
     from secmlt.manipulations.manipulation import Manipulation
     from secmlt.models.base_model import BaseModel
+    from secmlt.optimization import Objective
     from secmlt.optimization.gradient_processing import GradientProcessing
     from secmlt.optimization.initializer import Initializer
     from secmlt.trackers import Tracker
@@ -38,6 +39,7 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
         gamma: float = 0.05,
         min_step_size: float | None = None,
         min_gamma: float = 0.001,
+        objective: Objective | None = None,
     ) -> None:
         """
         Create modular evasion attack.
@@ -64,6 +66,9 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
             Gradient processing method.
         trackers : list[Tracker] | Tracker | None, optional
             Trackers for monitoring the attack, by default None.
+        objective : Objective | None, optional
+            Objective to maximize. If None, a ClassificationObjective is built
+            from the loss of the attack and y_target. By default None.
         """
         self.gamma = gamma
         self.min_gamma = min_gamma
@@ -85,6 +90,7 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
             trackers=trackers,
             optimizer_kwargs=optimizer_kwargs,
             scheduler_kwargs=scheduler_kwargs,
+            objective=objective,
         )
 
     def _run_loop(

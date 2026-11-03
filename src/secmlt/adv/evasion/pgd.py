@@ -29,6 +29,7 @@ from secmlt.optimization import (
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from secmlt.optimization import Objective
     from secmlt.trackers import Tracker
 
 
@@ -141,6 +142,7 @@ class PGDNative(ModularEvasionAttackFixedEps):
         lb: float = 0.0,
         ub: float = 1.0,
         trackers: list[Tracker] | None = None,
+        objective: Objective | None = None,
         **kwargs,
     ) -> None:
         """
@@ -168,6 +170,9 @@ class PGDNative(ModularEvasionAttackFixedEps):
         trackers : list[Tracker] | None, optional
             Trackers to check various attack metrics (see secmlt.trackers),
             available only for native implementation, by default None.
+        objective : Objective | None, optional
+            Objective to maximize. If None, a ClassificationObjective is built
+            from the loss of the attack and y_target. By default None.
         """
         perturbation_models = {
             LpPerturbationModels.L1: L1Constraint,
@@ -203,6 +208,7 @@ class PGDNative(ModularEvasionAttackFixedEps):
             gradient_processing=gradient_processing,
             initializer=initializer,
             trackers=trackers,
+            objective=objective,
         )
 
     @classmethod

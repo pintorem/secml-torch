@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
     from secmlt.manipulations.manipulation import Manipulation
     from secmlt.models.base_model import BaseModel
+    from secmlt.optimization import Objective
     from secmlt.optimization.gradient_processing import GradientProcessing
     from secmlt.optimization.initializer import Initializer
     from secmlt.trackers import Tracker
@@ -35,6 +36,7 @@ class ModularEvasionAttackFixedEps(ModularEvasionAttack):
         initializer: Initializer,
         gradient_processing: GradientProcessing,
         trackers: list[Tracker] | Tracker | None = None,
+        objective: Objective | None = None,
     ) -> None:
         """
         Create modular evasion attack.
@@ -61,6 +63,9 @@ class ModularEvasionAttackFixedEps(ModularEvasionAttack):
             Gradient processing method.
         trackers : list[Tracker] | Tracker | None, optional
             Trackers for monitoring the attack, by default None.
+        objective : Objective | None, optional
+            Objective to maximize. If None, a ClassificationObjective is built
+            from the loss of the attack and y_target. By default None.
         """
         super().__init__(
             y_target=y_target,
@@ -73,6 +78,7 @@ class ModularEvasionAttackFixedEps(ModularEvasionAttack):
             initializer=initializer,
             gradient_processing=gradient_processing,
             trackers=trackers,
+            objective=objective,
         )
 
     def _run_loop(

@@ -33,6 +33,7 @@ from secmlt.optimization import (
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from secmlt.optimization import Objective
     from secmlt.trackers import Tracker
 
 
@@ -146,6 +147,7 @@ class FMNNative(ModularEvasionAttackMinDistance):
         trackers: list[Tracker] | None = None,
         gamma: float = 0.05,
         min_step_size: float | None = None,
+        objective: Objective | None = None,
     ) -> None:
         """
         Create Native FMN attack.
@@ -173,6 +175,9 @@ class FMNNative(ModularEvasionAttackMinDistance):
         trackers : list[Tracker] | None, optional
             Trackers to check various attack metrics (see secmlt.trackers),
             available only for native implementation, by default None.
+        objective : Objective | None, optional
+            Objective to maximize. If None, a ClassificationObjective is built
+            from the loss of the attack and y_target. By default None.
         """
         perturbation_models = {
             LpPerturbationModels.L0: L0Constraint,
@@ -210,6 +215,7 @@ class FMNNative(ModularEvasionAttackMinDistance):
             trackers=trackers,
             gamma=gamma,
             min_step_size=min_step_size,
+            objective=objective,
         )
 
     @classmethod
