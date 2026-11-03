@@ -84,10 +84,8 @@ class PGD(BaseEvasionAttackCreator):
         BaseEvasionAttack
             PGD attack instance.
         """
-        cls.check_backend_available(backend)
-        implementation = cls.get_implementation(backend)
-        implementation.check_perturbation_model_available(perturbation_model)
-        return implementation(
+        return cls.create(
+            backend,
             perturbation_model=perturbation_model,
             epsilon=epsilon,
             num_steps=num_steps,

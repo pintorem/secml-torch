@@ -83,9 +83,8 @@ class DDN(BaseEvasionAttackCreator):
         BaseEvasionAttack
             DDN attack instance.
         """
-        cls.check_backend_available(backend)
-        implementation = cls.get_implementation(backend)
-        return implementation(
+        return cls.create(
+            backend,
             num_steps=num_steps,
             eps_init=eps_init,
             gamma=gamma,

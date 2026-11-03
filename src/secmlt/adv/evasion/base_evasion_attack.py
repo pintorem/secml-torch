@@ -47,6 +47,43 @@ class BaseEvasionAttackCreator:
         return implementations[backend]()
 
     @classmethod
+    def create(cls, backend: str, **kwargs) -> BaseEvasionAttack:
+        """
+        Create the attack with the given backend.
+
+        Parameters
+        ----------
+        backend : str
+            The backend for the attack. See secmlt.adv.backends for
+            available backends.
+        **kwargs
+            Arguments of the attack implementation.
+
+        Returns
+        -------
+        BaseEvasionAttack
+            Attack implemented with the given backend.
+
+        Raises
+        ------
+        ValueError
+            Raises ValueError if a custom objective is passed with a backend
+            different from the native one.
+        """
+        if kwargs.get("objective") is not None and backend != Backends.NATIVE:
+            msg = (
+                "Custom objectives are supported only by the native backend. "
+                "Use backend=Backends.NATIVE."
+            )
+            raise ValueError(msg)
+        implementation = cls.get_implementation(backend)
+        if "perturbation_model" in kwargs:
+            implementation.check_perturbation_model_available(
+                kwargs["perturbation_model"]
+            )
+        return implementation(**kwargs)
+
+    @classmethod
     def check_backend_available(cls, backend: str) -> bool:
         """
         Check if a given backend is available for the attack.
