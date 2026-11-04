@@ -19,7 +19,7 @@ from .gradient_processing import (
 )
 from .initializer import Initializer, RandomLpInitializer
 from .losses import LogitDifferenceLoss
-from .objectives import ClassificationObjective, Objective
+from .objectives import ClassificationObjective, Objective, TeacherForcingObjective
 from .optimizer_factory import ADAM, OptimizerFactory
 from .random_perturb import (
     RandomPerturb,
@@ -66,5 +66,6 @@ __all__ = [
     "RandomPerturbL1",
     "RandomPerturbL2",
     "RandomPerturbLinf",
+    "TeacherForcingObjective",
     "lin_proj_l1",
 ]

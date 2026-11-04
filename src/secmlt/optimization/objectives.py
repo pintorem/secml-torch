@@ -6,9 +6,10 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import torch
+from secmlt.models.base_vlm import IGNORE_INDEX
 
 if TYPE_CHECKING:
-    from secmlt.models import BaseModel
+    from secmlt.models import BaseModel, BaseVisionLanguageModel
 
 
 class Objective(ABC):
@@ -246,3 +247,121 @@ class ClassificationObjective(Objective):
             Boolean tensor of shape [batch].
         """
         return scores.argmax(dim=1) == reference
+
+
+class TeacherForcingObjective(Objective):
+    """
+    Objective for vision-language models answering a prompt.
+
+    The labels are the token IDs of the original answers (see
+    BaseVisionLanguageModel.encode). Untargeted attacks maximize the
+    cross-entropy of the original answers, targeted attacks minimize the
+    cross-entropy of the target answer. The scores are the teacher-forced
+    logits of the reference answer tokens.
+    """
+
+    def __init__(self, prompt: str, y_target: torch.Tensor | None = None) -> None:
+        """
+        Create the teacher-forcing objective.
+
+        Parameters
+        ----------
+        prompt : str
+            Text prompt (e.g., a question about the image).
+        y_target : torch.Tensor | None, optional
+            Token IDs of the target answer for targeted attacks (e.g., as
+            returned by BaseVisionLanguageModel.encode for one answer), None
+            for untargeted attacks. By default None.
+        """
+        super().__init__(y_target=None if y_target is None else y_target.reshape(1, -1))
+        self.prompt = prompt
+
+    def reference(self, labels: torch.Tensor) -> torch.Tensor:
+        """
+        Get the original answers (untargeted) or the target answer (targeted).
+
+        Parameters
+        ----------
+        labels : torch.Tensor
+            Token IDs of the original answers, padded with IGNORE_INDEX.
+
+        Returns
+        -------
+        torch.Tensor
+            Token IDs of the reference answer for each sample.
+        """
+        if self.y_target is None:
+            return labels
+        return self.y_target.expand(labels.shape[0], -1).to(labels.device)
+
+    def scores(
+        self,
+        model: BaseVisionLanguageModel,
+        x: torch.Tensor,
+        reference: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute the teacher-forced logits of the reference answer.
+
+        Parameters
+        ----------
+        model : BaseVisionLanguageModel
+            Attacked vision-language model.
+        x : torch.Tensor
+            Input images.
+        reference : torch.Tensor
+            Token IDs of the reference answer.
+
+        Returns
+        -------
+        torch.Tensor
+            Answer logits of shape [batch, answer_len, vocab_size].
+        """
+        return model.decision_function(x, self.prompt, reference)
+
+    def loss(self, scores: torch.Tensor, reference: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the mean cross-entropy of the answer tokens, ignoring padding.
+
+        Parameters
+        ----------
+        scores : torch.Tensor
+            Answer logits.
+        reference : torch.Tensor
+            Token IDs of the reference answer, padded with IGNORE_INDEX.
+
+        Returns
+        -------
+        torch.Tensor
+            Per-sample cross-entropy.
+        """
+        reference = reference.to(scores.device)
+        losses = torch.nn.functional.cross_entropy(
+            scores.transpose(1, 2),
+            reference,
+            ignore_index=IGNORE_INDEX,
+            reduction="none",
+        )
+        num_tokens = (reference != IGNORE_INDEX).sum(dim=1).clamp(min=1)
+        return losses.sum(dim=1) / num_tokens
+
+    def matches(self, scores: torch.Tensor, reference: torch.Tensor) -> torch.Tensor:
+        """
+        Check whether every answer token is the top-1 prediction.
+
+        Parameters
+        ----------
+        scores : torch.Tensor
+            Answer logits.
+        reference : torch.Tensor
+            Token IDs of the reference answer, padded with IGNORE_INDEX.
+
+        Returns
+        -------
+        torch.Tensor
+            Boolean tensor of shape [batch]: True if the greedy answer is the
+            reference one.
+        """
+        reference = reference.to(scores.device)
+        matches = (scores.argmax(dim=-1) == reference) | (reference == IGNORE_INDEX)
+        return matches.all(dim=1)
