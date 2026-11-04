@@ -199,7 +199,7 @@ class PGDNative(ModularEvasionAttackFixedEps):
             y_target=y_target,
             num_steps=num_steps,
             step_size=step_size,
-            loss_function=CE_LOSS,
+            loss_function=CE_LOSS if objective is None else None,
             optimizer_cls=OptimizerFactory.create_sgd(step_size),
             scheduler_cls=LRSchedulerFactory.create_no_scheduler(),
             manipulation_function=manipulation_function,

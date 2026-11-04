@@ -204,7 +204,7 @@ class FMNNative(ModularEvasionAttackMinDistance):
             y_target=y_target,
             num_steps=num_steps,
             step_size=max_step_size,
-            loss_function=LOGIT_LOSS,
+            loss_function=LOGIT_LOSS if objective is None else None,
             optimizer_cls=OptimizerFactory.create_sgd(lr=max_step_size),
             scheduler_cls=LRSchedulerFactory.create_cosine_annealing(),
             manipulation_function=manipulation_function,

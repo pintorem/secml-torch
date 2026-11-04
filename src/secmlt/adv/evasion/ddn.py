@@ -183,7 +183,7 @@ class DDNNative(ModularEvasionAttackMinDistance):
             step_size=1.0,
             y_target=y_target,
             num_steps=num_steps,
-            loss_function=CE_LOSS,
+            loss_function=CE_LOSS if objective is None else None,
             optimizer_cls=OptimizerFactory.create_sgd(lr=1.0),
             scheduler_cls=LRSchedulerFactory.create_cosine_annealing(),
             manipulation_function=manipulation_function,

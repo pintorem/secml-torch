@@ -29,7 +29,7 @@ class ModularEvasionAttackMinDistance(ModularEvasionAttack):
         y_target: int | None,
         num_steps: int,
         step_size: float,
-        loss_function: Union[str, torch.nn.Module],
+        loss_function: Union[str, torch.nn.Module, None],
         optimizer_cls: str | partial[Optimizer],
         scheduler_cls: str | partial[LRScheduler],
         manipulation_function: Manipulation,

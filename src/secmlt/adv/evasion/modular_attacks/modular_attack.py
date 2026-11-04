@@ -44,7 +44,7 @@ class ModularEvasionAttack(BaseEvasionAttack):
         y_target: int | None,
         num_steps: int,
         step_size: float,
-        loss_function: Union[str, torch.nn.Module],
+        loss_function: Union[str, torch.nn.Module, None],
         optimizer_cls: str | partial[Optimizer],
         scheduler_cls: str | partial[_LRScheduler],
         manipulation_function: Manipulation,
@@ -66,8 +66,9 @@ class ModularEvasionAttack(BaseEvasionAttack):
             Number of iterations for the attack.
         step_size : float
             Attack step size.
-        loss_function : str | torch.nn.Module
-            Loss function to minimize.
+        loss_function : str | torch.nn.Module | None
+            Loss function of the ClassificationObjective built when no
+            objective is given.
         optimizer_cls : str | partial[Optimizer]
             Algorithm for solving the attack optimization problem.
         scheduler_cls : str | partial[LRScheduler]
@@ -87,8 +88,9 @@ class ModularEvasionAttack(BaseEvasionAttack):
         Raises
         ------
         ValueError
-            Raises ValueError if the loss is not in allowed
-            list of loss functions.
+            Raises ValueError if the loss is not in allowed list of loss
+            functions, if an objective is given together with y_target or
+            loss_function, or if neither an objective nor a loss is given.
         """
         self.num_steps = num_steps
         self.step_size = step_size
@@ -96,19 +98,28 @@ class ModularEvasionAttack(BaseEvasionAttack):
             self.trackers = [trackers]
         else:
             self.trackers = trackers
-        if isinstance(loss_function, str):
-            if loss_function in LOSS_FUNCTIONS:
-                loss_function = LOSS_FUNCTIONS[loss_function](reduction="none")
-            else:
+        if objective is not None:
+            if y_target is not None or loss_function is not None:
                 msg = (
-                    f"Loss function not found. Use one among {LOSS_FUNCTIONS.values()}"
+                    "Pass either an objective or y_target/loss_function "
+                    "(which build a ClassificationObjective), not both."
                 )
                 raise ValueError(msg)
-        self.objective = (
-            objective
-            if objective is not None
-            else ClassificationObjective(loss_function, y_target=y_target)
-        )
+            self.objective = objective
+        else:
+            if loss_function is None:
+                msg = "Pass either an objective or a loss_function."
+                raise ValueError(msg)
+            if isinstance(loss_function, str):
+                if loss_function in LOSS_FUNCTIONS:
+                    loss_function = LOSS_FUNCTIONS[loss_function](reduction="none")
+                else:
+                    msg = (
+                        "Loss function not found. "
+                        f"Use one among {LOSS_FUNCTIONS.values()}"
+                    )
+                    raise ValueError(msg)
+            self.objective = ClassificationObjective(loss_function, y_target=y_target)
 
         if isinstance(optimizer_cls, str):
             optimizer_cls = OptimizerFactory.create_from_name(
