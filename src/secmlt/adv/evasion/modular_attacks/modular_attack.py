@@ -170,13 +170,29 @@ class ModularEvasionAttack(BaseEvasionAttack):
         self._manipulation_function = manipulation_function
 
     @property
+    def y_target(self) -> int | torch.Tensor | None:
+        """Get the target of the attack objective (None for untargeted)."""
+        return self.objective.y_target
+
+    @y_target.setter
+    def y_target(self, y_target: int | torch.Tensor | None) -> None:
+        """Set the target of the attack objective (None for untargeted)."""
+        self.objective.y_target = y_target
+
+    @property
     def loss_function(self) -> torch.nn.Module:
         """Get the loss function of the attack objective."""
+        if not hasattr(self.objective, "loss_function"):
+            msg = f"{type(self.objective).__name__} has no loss_function."
+            raise AttributeError(msg)
         return self.objective.loss_function
 
     @loss_function.setter
     def loss_function(self, loss_function: torch.nn.Module) -> None:
         """Set the loss function of the attack objective."""
+        if not hasattr(self.objective, "loss_function"):
+            msg = f"{type(self.objective).__name__} has no loss_function."
+            raise AttributeError(msg)
         if isinstance(loss_function, type):
             self.objective.loss_function = loss_function(reduction="none")
         else:
