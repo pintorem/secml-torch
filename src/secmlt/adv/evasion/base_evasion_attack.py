@@ -254,7 +254,7 @@ class BaseEvasionAttack:
             adversarials.append(x_adv)
             original_labels.append(labels)
         adversarials = torch.vstack(adversarials)
-        original_labels = torch.hstack(original_labels)
+        original_labels = self._concat_labels(original_labels)
         adversarial_dataset = TensorDataset(adversarials, original_labels)
         return DataLoader(
             adversarial_dataset,
@@ -287,6 +287,36 @@ class BaseEvasionAttack:
     @abstractmethod
     def _trackers_allowed(cls) -> Literal[False]:
         return False
+
+    @staticmethod
+    def _concat_labels(labels: list[torch.Tensor]) -> torch.Tensor:
+        """
+        Concatenate the labels of the attacked batches along the samples.
+
+        Labels with more than one dimension (e.g., token IDs of answers) are
+        right-padded with IGNORE_INDEX to the longest one.
+
+        Parameters
+        ----------
+        labels : list[torch.Tensor]
+            Labels of each batch.
+
+        Returns
+        -------
+        torch.Tensor
+            Labels of all the samples.
+        """
+        if labels[0].ndim > 1:
+            from secmlt.models.base_vlm import IGNORE_INDEX
+
+            width = max(batch.shape[-1] for batch in labels)
+            labels = [
+                torch.nn.functional.pad(
+                    batch, (0, width - batch.shape[-1]), value=IGNORE_INDEX
+                )
+                for batch in labels
+            ]
+        return torch.cat(labels, dim=0)
 
     @staticmethod
     def _ensure_wrapped(model: BaseModel | torch.nn.Module) -> BaseModel:
